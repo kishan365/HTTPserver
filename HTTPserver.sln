@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.10.34916.146
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HTTPserver", "HTTPserver\HTTPserver.vcxproj", "{09463ED5-8086-494B-BD86-46F14E85B434}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Project1", "Project1\Project1.vcxproj", "{024EA95B-6731-4256-90E4-2BE3849A65EB}"
 EndProject
 Global
@@ -15,14 +13,6 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{09463ED5-8086-494B-BD86-46F14E85B434}.Debug|x64.ActiveCfg = Debug|x64
-		{09463ED5-8086-494B-BD86-46F14E85B434}.Debug|x64.Build.0 = Debug|x64
-		{09463ED5-8086-494B-BD86-46F14E85B434}.Debug|x86.ActiveCfg = Debug|Win32
-		{09463ED5-8086-494B-BD86-46F14E85B434}.Debug|x86.Build.0 = Debug|Win32
-		{09463ED5-8086-494B-BD86-46F14E85B434}.Release|x64.ActiveCfg = Release|x64
-		{09463ED5-8086-494B-BD86-46F14E85B434}.Release|x64.Build.0 = Release|x64
-		{09463ED5-8086-494B-BD86-46F14E85B434}.Release|x86.ActiveCfg = Release|Win32
-		{09463ED5-8086-494B-BD86-46F14E85B434}.Release|x86.Build.0 = Release|Win32
 		{024EA95B-6731-4256-90E4-2BE3849A65EB}.Debug|x64.ActiveCfg = Debug|x64
 		{024EA95B-6731-4256-90E4-2BE3849A65EB}.Debug|x64.Build.0 = Debug|x64
 		{024EA95B-6731-4256-90E4-2BE3849A65EB}.Debug|x86.ActiveCfg = Debug|Win32
