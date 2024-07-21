@@ -4,7 +4,7 @@
 #endif 
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#pragma comment (lib,"ws2_32.lib")
+#pragma comment(lib, "ws2_32.lib")
 #else 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -64,9 +64,10 @@ SOCKET create_socket(const char* host, const char* port) {
         fprintf(stderr, "socket() failed. (%d)\n", GETSOCKETERRNO());
         exit(1);
     }
+
     printf("Binding socket to the local address...\n");
     if (bind(socket_listen, bind_address->ai_addr, bind_address->ai_addrlen)) {
-        fprintf(stderr, "bind failed(). %d\n", GETSOCKETERRNO());
+        fprintf(stderr, "bind() failed. %d\n", GETSOCKETERRNO());
         exit(1);
     }
     freeaddrinfo(bind_address);
@@ -94,7 +95,7 @@ struct client_info* get_client(SOCKET socket) {
         fprintf(stderr, "Memory allocation failed.\n");
         exit(1);
     }
-    n->socket = socket;
+    n->addrlen_length = sizeof(n->address);
     n->next = clients;
     clients = n;
 
@@ -116,29 +117,39 @@ void drop_client(struct client_info* client) {
     exit(1);
 }
 
-const char* get_client_address(struct client_info* clients) {
+const char* get_client_address(struct client_info* client) {
     static char address_buffer[100];
-    getnameinfo((struct sockaddr*)&clients->address, clients->addrlen_length, address_buffer, sizeof(address_buffer), NULL, 0, NI_NUMERICHOST);
+    getnameinfo((struct sockaddr*)&client->address, client->addrlen_length, address_buffer, sizeof(address_buffer), NULL, 0, NI_NUMERICHOST);
     return address_buffer;
 }
 
 fd_set wait_on_clients(SOCKET socket) {
-    fd_set reads;
-    FD_ZERO(&reads);
-    FD_SET(socket, &reads);
+    fd_set read;
+    FD_ZERO(&read);
+    FD_SET(socket, &read);
+
     struct client_info* n = clients;
     SOCKET max_socket = socket;
     while (n) {
-        FD_SET(n->socket, &reads);
+        FD_SET(n->socket, &read);
         if (n->socket > max_socket)
             max_socket = n->socket;
         n = n->next;
     }
-    if (select(max_socket + 1, &reads, 0, 0, 0) < 0) {
+
+    struct timeval timeout;
+    timeout.tv_sec = 7;
+    timeout.tv_usec = 0;
+
+    int result = select(max_socket + 1, &read, 0, 0, 0);
+    if (result < 0) {
         fprintf(stderr, "select() failed. %d\n", GETSOCKETERRNO());
         exit(1);
     }
-    return reads;
+    if (FD_ISSET(socket, &read)) {
+        printf("\nThe socket i.e. %d is present in the fdset", socket);
+    }
+    return read;
 }
 
 void send_400(struct client_info* client) {
@@ -159,13 +170,33 @@ void send_404(struct client_info* client) {
 
 const char* get_content_type(const char* path) {
     // Implement content type determination based on file extension
+    char* extracted_text = strrchr(path, '.');
+    if (extracted_text) {
+        extracted_text = extracted_text + 1;
+        if (strcmp(extracted_text, "css") == 0) return "text/css";
+        if (strcmp(extracted_text, "csv") == 0) return "text/csv";
+        if (strcmp(extracted_text, "gif") == 0) return "image/gif";
+        if (strcmp(extracted_text, "htm") == 0) return "text/html";
+        if (strcmp(extracted_text, "html") == 0) return "text/html";
+        if (strcmp(extracted_text, "ico") == 0) return "image/x-icon";
+        if (strcmp(extracted_text, "jpeg") == 0) return "image/jpeg";
+        if (strcmp(extracted_text, "jpg") == 0) return "image/jpeg";
+        if (strcmp(extracted_text, "js") == 0) return "application/javascript";
+        if (strcmp(extracted_text, "json") == 0) return "application/json";
+        if (strcmp(extracted_text, "png") == 0) return "image/png";
+        if (strcmp(extracted_text, "pdf") == 0) return "application/pdf";
+        if (strcmp(extracted_text, "svg") == 0) return "image/svg+xml";
+        if (strcmp(extracted_text, "txt") == 0) return "text/plain";
+    }
+    if (strcmp(path,"/")==0) {
+        return "text/html";
+    }
     return "application/octet-stream"; // Default for unknown types
 }
 
 void serve_resource(struct client_info* client, char* path) {
     if (strcmp(path, "/") == 0) {
-        //path = "/index.html";
-        path = "C:\\Users\\kishan sah\\Desktop\\test.txt";
+        path = "C:\\Users\\kishan sah\\Desktop\\test.html";
     }
     if (strstr(path, "..")) {
         send_400(client);
@@ -177,7 +208,7 @@ void serve_resource(struct client_info* client, char* path) {
     }
 
     char full_path[128];
-    sprintf_s(full_path, "public%s", path);
+    snprintf(full_path, sizeof(full_path), "%s", path);
 
     FILE* fp = fopen(full_path, "rb");
     if (!fp) {
@@ -189,27 +220,30 @@ void serve_resource(struct client_info* client, char* path) {
     size_t file_size = ftell(fp);
     rewind(fp);
 
-    char* content_type = get_content_type(full_path);
+    const char* content_type = get_content_type(full_path);
 
     char buffer[MAX_REQUEST_SIZE];
-    sprintf_s(buffer, sizeof(buffer), "HTTP/1.1 200 OK\r\n");
+    snprintf(buffer, sizeof(buffer), "HTTP/1.1 200 OK\r\n");
     send(client->socket, buffer, strlen(buffer), 0);
 
-    sprintf_s(buffer, sizeof(buffer), "Connection: close\r\n");
+    snprintf(buffer, sizeof(buffer), "Connection: close\r\n");
     send(client->socket, buffer, strlen(buffer), 0);
 
-    sprintf_s(buffer, "Content-Length: %lu\r\n", (unsigned long)file_size);
+    snprintf(buffer, sizeof(buffer), "Content-Length: %lu\r\n", (unsigned long)file_size);
     send(client->socket, buffer, strlen(buffer), 0);
 
-    sprintf_s(buffer, "Content-Type: %s\r\n", content_type);
+    snprintf(buffer, sizeof(buffer), "Content-Type: %s\r\n", content_type);
     send(client->socket, buffer, strlen(buffer), 0);
 
-    sprintf_s(buffer, sizeof(buffer), "\r\n");
+    snprintf(buffer, sizeof(buffer), "\r\n");
     send(client->socket, buffer, strlen(buffer), 0);
 
     size_t bytes_read;
     while ((bytes_read = fread(buffer, 1, MAX_REQUEST_SIZE, fp)) > 0) {
-        send(client->socket, buffer, bytes_read, 0);
+        if (send(client->socket, buffer, bytes_read, 0) < 0) {
+            fprintf(stderr, "send() function was failed. %d", GETSOCKETERRNO());
+        }
+        
     }
 
     fclose(fp);
@@ -225,7 +259,7 @@ int main() {
     }
 #endif
 
-    SOCKET server = create_socket("127.0.0.1", "8090");
+    SOCKET server = create_socket("127.0.0.1", "8080");
 
     while (1) {
         fd_set reads;
@@ -240,10 +274,16 @@ int main() {
             }
             printf("New connection from %s.\n", get_client_address(client));
         }
+        //Now that we have the new connection established from the client, we can proceed to serve the file
+        //First we need to parse the url and extract the path from the url. So for this we are going to create the function and get the path from the url
 
+        //get_content_type("/");
         struct client_info* client = clients;
+        //serve_resource(client, "/");   //Upto this point one client has been created and already placed into the 
+        //client info structure.
         while (client) {
             struct client_info* next = client->next;
+
             if (FD_ISSET(client->socket, &reads)) {
                 if (2048 == client->received) {
                     send_400(client);
